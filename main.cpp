@@ -20,13 +20,11 @@ struct Appliance {
         return (powerW * hoursPerDay) / 1000.0;
     }
 };
-
 // --- HELPER FUNCTIONS ---
 static void clearBadInput() {
     cin.clear();
     cin.ignore(numeric_limits<streamsize>::max(), '\n');
 }
-
 static string toLowerStr(string s) {
     transform(s.begin(), s.end(), s.begin(),
               [](unsigned char c) { return static_cast<char>(tolower(c)); });
