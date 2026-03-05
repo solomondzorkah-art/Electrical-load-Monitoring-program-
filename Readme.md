@@ -1,74 +1,38 @@
-Electrical Load Monitoring System
-Week 1 Implementation
-Overview
+# Load Monitoring and Billing Simulator
+**Student Name:** [Dzorkah Solomon]
+**Index Number:** [01240528D]
+**Course:** EEE 227 (PT)
 
-This project is a menu-driven C++ console application developed for the Electrical Load Monitoring capstone project.
+## Project Overview
+This C++ application allows users to manage electrical appliances, 
+calculate energy consumption, and estimate billing costs.
 
-Week 1 focuses on building the basic structure of the system, allowing users to register electrical appliances and view the list of registered appliances.
+## Week 1 Progress
+* Created core C++ application structure.
+* Implemented appliance search and registration logic.
+* Set up data logging files (`appliance.txt` and `billing_summary.txt`).
+* Configured GitHub repository for version control.
 
-Features Implemented (Week 1)
 
-Appliance structure definition using struct
 
-Dynamic storage using vector
+# Electrical Load Monitoring System
 
-Menu-driven interface
+A C++ application that calculates daily energy consumption and generates a monthly billing report.
 
-Register appliance feature
+## How to use
+1. Add appliances to `appliance.txt` (Format: Name Watts Hours).
+2. Note: Use underscores for multi-word names (e.g., Water_pump).
+3. Run the program and select **Option 5** to generate `billing_summary.txt`.
 
-View all registered appliances
 
-Input validation for:
+##  How to Run the Simulator
 
-Empty appliance name
-
-Power rating must be greater than zero
-
-Usage hours must be between 0 and 24
-
-Technologies Used
-
-C++ programming language
-
-Standard libraries:
-
-<iostream>
-
-<vector>
-
-<string>
-
-<iomanip>
-
-<limits>
-
-How the Program Works
-
-The program displays a menu.
-
-The user can register an appliance by entering:
-
-Appliance name
-
-Power rating (Watts)
-
-Usage hours per day
-
-Registered appliances are stored in memory using a vector.
-
-The user can view all registered appliances in a formatted table.
-
-The program runs in a loop until the user chooses to exit.
-
-Project Structure (Week 1)
-main.cpp
-README.md
-
-Sample Menu
-1. Register appliance
-2. View all appliances
-0. Exit
-
-Week 1 Objective
-
-The goal of Week 1 is to establish a working foundation for the system before adding calculations, billing, and file persistence in later weeks.
+1. **Prerequisites**: Ensure you have a C++ compiler (like MinGW) installed.
+2. **Compilation**: Open your terminal in this folder and run:
+   ``g++ main.cpp -o Loadmonitor``
+3. **Execution**: Run the program by typing:
+   `./LoadMonitor`
+4. **Data Persistence**: 
+   - Appliance data is automatically saved to `appliance.txt`.
+   - The billing report is generated in `billing_summary.txt`.
+   - The electricity tariff is saved in `config.txt`.g++ main.cpp -o LoadMonitor
