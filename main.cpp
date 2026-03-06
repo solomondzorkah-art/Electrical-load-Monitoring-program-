@@ -1,4 +1,3 @@
-
 #include <iostream>
 #include <vector>
 #include <string>
@@ -7,20 +6,21 @@
 #include <algorithm>
 #include <cctype>
 #include <fstream>
-#include <sstream>
 
 using namespace std;
 
+// --- STRUCTURES ---
 struct Appliance {
     string name;
-    double powerW;      // watts
-    double hoursPerDay; // 0 - 24
+    double powerW;
+    double hoursPerDay;
 
     double energyKWhPerDay() const {
         return (powerW * hoursPerDay) / 1000.0;
     }
 };
 
+// --- HELPER FUNCTIONS ---
 static void clearBadInput() {
     cin.clear();
     cin.ignore(numeric_limits<streamsize>::max(), '\n');
@@ -32,361 +32,184 @@ static string toLowerStr(string s) {
     return s;
 }
 
-// Files required by the project
-const string APPLIANCES_FILE = "appliances.txt";
-const string BILLING_FILE    = "billing_summary.txt";
-
-// ---------------- FILE SAVE/LOAD ----------------
-void saveAppliances(const vector<Appliance>& appliances) {
-    ofstream out(APPLIANCES_FILE);
-    if (!out) {
-        cout << "Error: Unable to save to " << APPLIANCES_FILE << "\n";
-        return;
-    }
-
-    for (const auto& a : appliances) {
-        out << a.name << "|" << a.powerW << "|" << a.hoursPerDay << "\n";
+// Requirement 5.4: Save/Load Tariff so it persists
+void saveTariff(double t) {
+    ofstream fout("config.txt");
+    if (fout.is_open()) {
+        fout << t;
+        fout.close();
     }
 }
 
-vector<Appliance> loadAppliances() {
-    vector<Appliance> appliances;
-    ifstream in(APPLIANCES_FILE);
-
-    // File might not exist yet; that's okay.
-    if (!in) return appliances;
-
-    string line;
-    while (getline(in, line)) {
-        if (line.empty()) continue;
-
-        stringstream ss(line);
-        string name, powerStr, hoursStr;
-
-        if (!getline(ss, name, '|')) continue;
-        if (!getline(ss, powerStr, '|')) continue;
-        if (!getline(ss, hoursStr, '|')) continue;
-
-        try {
-            Appliance a{};
-            a.name = name;
-            a.powerW = stod(powerStr);
-            a.hoursPerDay = stod(hoursStr);
-
-            // Skip invalid lines
-            if (a.name.empty()) continue;
-            if (a.powerW <= 0) continue;
-            if (a.hoursPerDay < 0 || a.hoursPerDay > 24) continue;
-
-            appliances.push_back(a);
-        } catch (...) {
-            // Skip malformed lines
-            continue;
-        }
+double loadTariff() {
+    double t = 0.15; // Default if file missing
+    ifstream fin("config.txt");
+    if (fin.is_open()) {
+        fin >> t;
+        fin.close();
     }
-
-    return appliances;
+    return t;
 }
 
-// ---------------- MENU ----------------
+// --- CORE FUNCTIONALITIES ---
 int menu() {
-    cout << "\n==============================\n";
-    cout << "   Electrical Load Monitoring\n";
-    cout << "==============================\n";
-    cout << "1. Register appliance\n";
-    cout << "2. View all appliances\n";
-    cout << "3. Search appliance by name\n";
-    cout << "4. Energy summary (kWh/day)\n";
-    cout << "5. Billing summary (save to file)\n";
-    cout << "0. Exit\n";
-    cout << "Choose: ";
-
+    cout << "\n====================================\n";
+    cout << "   ELECTRICAL LOAD & BILLING SYSTEM\n";
+    cout << "====================================\n";
+    cout << "1. Register Appliance\n";
+    cout << "2. View All Registered\n";
+    cout << "3. Search Appliance by Name\n";
+    cout << "4. Energy Summary (Total Load)\n";
+    cout << "5. Generate Billing Report (File)\n";
+    cout << "6. Delete Appliance\n";
+    cout << "7. Update Electricity Tariff\n";
+    cout << "8. View Usage Bar Chart\n";
+    cout << "0. Exit System\n";
+    cout << "------------------------------------\n";
+    cout << "Choose Option: ";
     int choice;
-    cin >> choice;
-
-    if (cin.fail()) {
-        clearBadInput();
-        return -1;
-    }
+    if (!(cin >> choice)) { clearBadInput(); return -1; }
     return choice;
 }
 
-// ---------------- FEATURES ----------------
-Appliance registerAppliance() {
-    Appliance a{};
-
-    // clear newline from previous cin >> ...
-    cin.ignore(numeric_limits<streamsize>::max(), '\n');
-
-    // name validation
-    do {
-        cout << "Enter appliance name: ";
-        getline(cin, a.name);
-        if (a.name.empty()) cout << "Name must not be empty.\n";
-    } while (a.name.empty());
-
-    // power validation
-    while (true) {
-        cout << "Enter power rating (W): ";
-        cin >> a.powerW;
-
-        if (!cin.fail() && a.powerW > 0) break;
-
-        cout << "Power must be a number greater than zero.\n";
-        clearBadInput();
-    }
-
-    // hours validation
-    while (true) {
-        cout << "Enter usage hours per day (0 - 24): ";
-        cin >> a.hoursPerDay;
-
-        if (!cin.fail() && a.hoursPerDay >= 0 && a.hoursPerDay <= 24) break;
-
-        cout << "Hours must be a number between 0 and 24.\n";
-        clearBadInput();
-    }
-
-    cout << "Appliance registered successfully!\n";
-    return a;
-}
-
-void viewAllAppliances(const vector<Appliance>& appliances) {
-    if (appliances.empty()) {
-        cout << "No appliances registered.\n";
-        return;
-    }
-
-    cout << "\n================= APPLIANCES =================\n";
-    cout << left
-         << setw(5)  << "No."
-         << setw(20) << "Name"
-         << setw(12) << "Power(W)"
-         << setw(12) << "Hours/day"
-         << "\n----------------------------------------------\n";
-
-    for (size_t i = 0; i < appliances.size(); i++) {
-        const auto& a = appliances[i];
-        cout << left
-             << setw(5)  << (i + 1)
-             << setw(20) << a.name
-             << setw(12) << fixed << setprecision(2) << a.powerW
-             << setw(12) << fixed << setprecision(2) << a.hoursPerDay
-             << "\n";
-    }
-    cout << "================================================\n";
-}
-
-void searchApplianceByName(const vector<Appliance>& appliances) {
-    if (appliances.empty()) {
-        cout << "No appliances registered.\n";
-        return;
-    }
-
-    cin.ignore(numeric_limits<streamsize>::max(), '\n');
-
+void searchAppliance(const vector<Appliance>& apps) {
+    if (apps.empty()) { cout << "No data available.\n"; return; }
+    cout << "Enter name to search: ";
     string query;
-    cout << "Enter appliance name to search: ";
+    cin.ignore();
     getline(cin, query);
-
-    if (query.empty()) {
-        cout << "Search term cannot be empty.\n";
-        return;
-    }
-
+    
     string qLower = toLowerStr(query);
     bool found = false;
-
-    for (const auto& a : appliances) {
+    for (const auto& a : apps) {
         if (toLowerStr(a.name).find(qLower) != string::npos) {
-            if (!found) {
-                cout << "\nFound:\n";
-                cout << left
-                     << setw(20) << "Name"
-                     << setw(12) << "Power(W)"
-                     << setw(12) << "Hours/day"
-                     << setw(12) << "kWh/day"
-                     << "\n------------------------------------------------\n";
-            }
+            cout << ">> Found: " << a.name << " [" << a.powerW << "W]\n";
             found = true;
-            cout << left
-                 << setw(20) << a.name
-                 << setw(12) << fixed << setprecision(2) << a.powerW
-                 << setw(12) << fixed << setprecision(2) << a.hoursPerDay
-                 << setw(12) << fixed << setprecision(3) << a.energyKWhPerDay()
-                 << "\n";
         }
     }
-
-    if (!found) {
-        cout << "No appliance matched: " << query << "\n";
-    }
+    if (!found) cout << "no appliance found.\n";
 }
 
-void showEnergySummary(const vector<Appliance>& appliances) {
-    if (appliances.empty()) {
-        cout << "No appliances registered.\n";
-        return;
-    }
-
-    cout << "\n=============== ENERGY SUMMARY (per day) ===============\n";
-    cout << left
-         << setw(20) << "Name"
-         << setw(12) << "Power(W)"
-         << setw(12) << "Hours"
-         << setw(12) << "kWh/day"
-         << "\n--------------------------------------------------------\n";
-
-    double total = 0.0;
-
-    for (const auto& a : appliances) {
-        double kwh = a.energyKWhPerDay();
-        total += kwh;
-
-        cout << left
-             << setw(20) << a.name
-             << setw(12) << fixed << setprecision(2) << a.powerW
-             << setw(12) << fixed << setprecision(2) << a.hoursPerDay
-             << setw(12) << fixed << setprecision(3) << kwh
-             << "\n";
-    }
-
-    cout << "--------------------------------------------------------\n";
-    cout << "TOTAL ENERGY: " << fixed << setprecision(3) << total << " kWh/day\n";
-    cout << "========================================================\n";
-}
-
-// Saves billing output to BILLING_FILE AND prints to screen
-void calculateBill(const vector<Appliance>& appliances) {
-    if (appliances.empty()) {
-        cout << "No appliances registered.\n";
-        return;
-    }
-
-    double tariff;
-    while (true) {
-        cout << "Enter electricity tariff per kWh: ";
-        cin >> tariff;
-
-        if (!cin.fail() && tariff > 0) break;
-
-        cout << "Tariff must be a positive number.\n";
-        clearBadInput();
-    }
-
-    // Table header (console)
-    cout << "\n================ BILLING REPORT ================\n";
-    cout << left
-         << setw(5)  << "No."
-         << setw(20) << "Name"
-         << setw(12) << "kWh/day"
-         << setw(12) << "Cost/day"
-         << "\n------------------------------------------------\n";
-
-    // Open file for writing billing summary
-    ofstream out(BILLING_FILE);
-    if (!out) {
-        cout << "Error: Unable to write to " << BILLING_FILE << "\n";
-    } else {
-        out << "================ BILLING REPORT ================\n";
-        out << left
-            << setw(5)  << "No."
-            << setw(20) << "Name"
-            << setw(12) << "kWh/day"
-            << setw(12) << "Cost/day"
-            << "\n------------------------------------------------\n";
-    }
-
-    double totalEnergyDay = 0.0;
-    double totalCostDay   = 0.0;
-
-    for (size_t i = 0; i < appliances.size(); i++) {
-        const auto& a = appliances[i];
-        double kwhDay  = a.energyKWhPerDay();
-        double costDay = kwhDay * tariff;
-
-        totalEnergyDay += kwhDay;
-        totalCostDay   += costDay;
-
-        // Print to console
-        cout << left
-             << setw(5)  << (i + 1)
-             << setw(20) << a.name
-             << setw(12) << fixed << setprecision(3) << kwhDay
-             << setw(12) << fixed << setprecision(2) << costDay
-             << "\n";
-
-        // Write to file
-        if (out) {
-            out << left
-                << setw(5)  << (i + 1)
-                << setw(20) << a.name
-                << setw(12) << fixed << setprecision(3) << kwhDay
-                << setw(12) << fixed << setprecision(2) << costDay
-                << "\n";
-        }
-    }
-
-    double totalEnergyMonth = totalEnergyDay * 30;
-    double totalCostMonth   = totalCostDay * 30;
-
-    cout << "------------------------------------------------\n";
-    cout << "Total Energy (per day): " << fixed << setprecision(3) << totalEnergyDay << " kWh/day\n";
-    cout << "Total Cost (per day):   " << fixed << setprecision(2) << totalCostDay << "\n";
-    cout << "Monthly Energy (30d):   " << fixed << setprecision(3) << totalEnergyMonth << " kWh\n";
-    cout << "Monthly Cost (30d):     " << fixed << setprecision(2) << totalCostMonth << "\n";
-    cout << "================================================\n";
-
-    if (out) {
-        out << "------------------------------------------------\n";
-        out << "Total Energy (per day): " << fixed << setprecision(3) << totalEnergyDay << " kWh/day\n";
-        out << "Total Cost (per day):   " << fixed << setprecision(2) << totalCostDay << "\n";
-        out << "Monthly Energy (30d):   " << fixed << setprecision(3) << totalEnergyMonth << " kWh\n";
-        out << "Monthly Cost (30d):     " << fixed << setprecision(2) << totalCostMonth << "\n";
-        out << "================================================\n";
-        out.close();
-
-        cout << "Billing summary saved to " << BILLING_FILE << "\n";
-    }
-}
-
-// ---------------- MAIN ----------------
 int main() {
-    vector<Appliance> appliances = loadAppliances();
+    vector<Appliance> appliances;
+    double tariff = loadTariff(); 
+
+    // Requirement 5.4: Load data on startup
+    ifstream loadFile("appliance.txt");
+    if (loadFile.is_open()) {
+        string n; double p, h;
+        while (loadFile >> n >> p >> h) {
+            appliances.push_back({n, p, h});
+        }
+        loadFile.close();
+    }
 
     while (true) {
         int choice = menu();
+        if (choice == 0) break;
 
-        switch (choice) { 
-            case 1: {
-                Appliance a = registerAppliance();
+        switch (choice) {
+            case 1: { // Register
+                Appliance a;
+                cout << "Name (no spaces): "; cin >> a.name;
+                
+                // Requirement 6: Validation
+                while (true) {
+                    cout << "Power (Watts > 0): ";
+                    if (cin >> a.powerW && a.powerW > 0) break;
+                    cout << "Error: Power must be positive Enter again.\n"; clearBadInput();
+                }
+                while (true) {
+                    cout << "Daily Hours (0-24): ";
+                    if (cin >> a.hoursPerDay && a.hoursPerDay >= 0 && a.hoursPerDay <= 24) break;
+                    cout << "Error: Hours must be 0-24 Enter again.\n"; clearBadInput();
+                }
+
                 appliances.push_back(a);
-                saveAppliances(appliances);
+                ofstream outFile("appliance.txt", ios::app);
+                outFile << a.name << " " << a.powerW << " " << a.hoursPerDay << endl;
+                cout << "Appliance registered successfully.\n";
                 break;
             }
-            case 2:
-                viewAllAppliances(appliances);
+            case 2: { // View All
+                if (appliances.empty()) cout << "Registry is empty.\n";
+                else {
+                    cout << left << setw(15) << "\nName" << setw(10) << "Watts" << "Hours/Day\n";
+                    for(const auto &app : appliances) 
+                        cout << left << setw(15) << app.name << setw(10) << app.powerW << app.hoursPerDay << endl;
+                }
                 break;
+            }
+            case 3: searchAppliance(appliances); break;
 
-            case 3:
-                searchApplianceByName(appliances);
+            case 4: { // Energy Summary
+                double total = 0;
+                cout << "\n--- DAILY LOAD PROFILE ---\n";
+                for (const auto& app : appliances) {
+                    double kwh = app.energyKWhPerDay();
+                    total += kwh;
+                    cout << "- " << app.name << ": " << fixed << setprecision(3) << kwh << " kWh\n";
+                }
+                cout << "--------------------------\n";
+                cout << "TOTAL SYSTEM LOAD: " << total << " kWh/day\n";
                 break;
-
-            case 4:
-                showEnergySummary(appliances);
+            }
+            case 5: { // Billing
+                ofstream billFile("billing_summary.txt");
+                double totalCost = 0;
+                billFile << "=== OFFICIAL BILLING REPORT ===\n";
+                billFile << "Tariff Rate: $" << tariff << "/kWh\n\n";
+                for (const auto& app : appliances) {
+                    double cost = app.energyKWhPerDay() * 30 * tariff;
+                    totalCost += cost;
+                    billFile << left << setw(15) << app.name << ": $" << fixed << setprecision(2) << cost << "\n";
+                }
+                billFile << "\nTOTAL ESTIMATED MONTHLY BILL: $" << totalCost << "\n";
+                billFile.close();
+                cout << "Report generated: billing_summary.txt\n";
                 break;
-
-            case 5:
-                calculateBill(appliances);
+            }
+            case 6: { // Sync Delete
+                string dName, n; double p, h;
+                cout << "Enter name to remove: "; cin >> dName;
+                ifstream fin("appliance.txt");
+                ofstream fout("temp.txt");
+                bool found = false;
+                while (fin >> n >> p >> h) {
+                    if (n != dName) fout << n << " " << p << " " << h << endl;
+                    else found = true;
+                }
+                fin.close(); fout.close();
+                remove("appliance.txt"); rename("temp.txt", "appliance.txt");
+                
+                if (found) {
+                    for (auto it = appliances.begin(); it != appliances.end(); ++it) {
+                        if (it->name == dName) { appliances.erase(it); break; }
+                    }
+                    cout << "Deleted successfully.\n";
+                } else cout << "Appliance not found.\n";
                 break;
-
-            case 0:
-                saveAppliances(appliances);
-                cout << "Goodbye!\n";
-                return 0;
-
-            default:
-                cout << "Invalid choice. Please try again.\n";
+            }
+            case 7: { // Update Tariff
+                cout << "Enter new tariff rate ($/kWh): ";
+                if (cin >> tariff && tariff > 0) {
+                    saveTariff(tariff);
+                    cout << "Tariff saved to config.\n";
+                } else { cout << "Invalid rate.\n"; clearBadInput(); }
+                break;
+            }
+            case 8: { // Visual Bar Chart
+                cout << "\n--- COST DISTRIBUTION ($) ---\n";
+                for (const auto& app : appliances) {
+                    double cost = app.energyKWhPerDay() * 30 * tariff;
+                    cout << left << setw(12) << app.name << " | ";
+                    for(int i = 0; i < (int)(cost * 2); i++) cout << "#"; // Scaled for visibility
+                    cout << " ($" << fixed << setprecision(2) << cost << ")\n";
+                }
+                break;
+            }
+            default: cout << "Invalid selection.\n"; break;
         }
     }
+    return 0;
 }
